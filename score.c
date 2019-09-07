@@ -1,36 +1,82 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 
-#define VERSION "0.1.2"
+#define VERSION "0.2"
 #define BALLS_PER_OVER 6
 #define TOTAL_WICKETS 10
 
+/* Use struct for innings */
+struct Innings {
+        unsigned int runs;
+        unsigned short wickets;
+        unsigned int balls;
+};
+
+struct Batsman {
+	unsigned int runs;
+	unsigned int balls;
+	bool in;
+	char name[20];
+
+}batsman[11];
+
+
 void welcome();
-void print_score(int runs, int wickets, int balls);
+void print_score(struct Innings innings);
+void print_batsman(struct Batsman batsman);
+void switch_strike(int *striker, int *non_striker);
+void print_scorecard(struct Batsman batsman[11]);
+void setup_batsman(struct Batsman *player);
 
 int main() {
 	welcome();
 	/* Declare variables */
-	int runs = 0;
-	int wickets = 0;
-	int balls = 0;
+	struct Innings innings;
+	innings.runs = 0;
+	innings.wickets = 0;
+	innings.balls = 0;
+	int striker = 0, non_striker = 1;
+	setup_batsman(&batsman[striker]);
+	setup_batsman(&batsman[non_striker]);
+	printf("Match ready to commence.\n");
+	/* Setup batsmen */
 	char input, *ip;
 	ip = &input;
-	while((input = getchar()) != 'x' & wickets < TOTAL_WICKETS) {
+	while((input = getchar()) != 'x' & innings.wickets < TOTAL_WICKETS) {
 		/* Skip enter */
 		if (input == '\n') continue;
+		if (input == 's') {
+			print_scorecard(batsman);
+			continue;
+		}
 		/* Handle input */
 		if (input == '.') {
-			balls += 1;
+			innings.balls += 1;
+			batsman[striker].balls++;
 		} else if (input == 'w') {
-			balls += 1;
-			wickets += 1;
+			innings.balls += 1;
+			innings.wickets += 1;
+			batsman[striker].in = false;
+			striker = innings.wickets + 1;
+			setup_batsman(&batsman[striker]);
 		} else {
-			balls += 1;
+			innings.balls += 1;
+			int runs_scored = input - '0';
 			/* Convert to int. This works because '0' is also an int, and spec guarantees numbers are sequential */
-			runs += input - '0';
+			innings.runs += runs_scored;
+			batsman[striker].runs += runs_scored;
+			batsman[striker].balls++;
+			/* Change the strike if uneven number of balls */
+			if (runs_scored % 2 != 0) {
+				switch_strike(&striker, &non_striker);
+			}
 		}
-		print_score(runs, wickets, balls);
+		/* If end of over, switch strike, even if already switched */
+		if (innings.balls % BALLS_PER_OVER == 0) switch_strike(&striker, &non_striker);
+		print_score(innings);
+		print_batsman(batsman[striker]);
+		print_batsman(batsman[non_striker]);
 	}
 	
 	return 0;
@@ -41,11 +87,45 @@ void welcome() {
 	printf("Version %s\n", VERSION);
 }
 
-void print_score(int runs, int wickets, int balls) {
-	printf("%d/%d from %d.%d overs\n", wickets, runs, balls / BALLS_PER_OVER, balls % BALLS_PER_OVER);
+void print_score(struct Innings innings) {
+	printf("%d/%d from %d.%d overs\n", innings.wickets, innings.runs, innings.balls / BALLS_PER_OVER, innings.balls % BALLS_PER_OVER);
 	/* Calculate and display run rate */
-	double divisor = (balls / BALLS_PER_OVER) + ((balls % BALLS_PER_OVER) / (double) BALLS_PER_OVER);
-	double run_rate = runs / divisor;
+	double divisor = (innings.balls / BALLS_PER_OVER) + ((innings.balls % BALLS_PER_OVER) / (double) BALLS_PER_OVER);
+	double run_rate = innings.runs / divisor;
 	printf("Run rate: %.2f\n", run_rate);	
 
+}
+
+void print_batsman(struct Batsman batsman) {
+	printf("%s: %d (%d)\n", batsman.name, batsman.runs, batsman.balls);
+}
+
+void switch_strike(int *striker, int *non_striker) {
+	int swap = *striker;
+	*striker = *non_striker;
+	*non_striker = swap;
+}
+
+void print_scorecard(struct Batsman batsman[11]) {
+	printf("Name\t\tRuns\tBalls\n");
+	struct Batsman *p;
+	p = &batsman[0];
+	for(int i = 0; i < 11; i++) {
+		printf("%s", p->name);
+		/* Print asterisk if they are in */
+		if (p->in) printf("*");
+		printf("\t\t%d\t%d\n", p->runs, p->balls);
+		p++;
+	}
+}
+
+void setup_batsman(struct Batsman *player) {
+	player->runs = 0;
+	player->balls = 0;
+	player->in = true;
+	/* Player name setup */
+	char * name;
+        name = player->name;
+	printf("Enter batsman name: ");
+	scanf("%s", player->name);
 }
