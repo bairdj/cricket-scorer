@@ -9,6 +9,15 @@ There are a few special inputs handled by the program:
 * x: Exits the program
 * .: Equivalent to 0 - a *dot ball*
 * s: Prints a scorecard
+* !: Wicket
+
+Extras:
+* n: No ball
+* w: Wide
+* b: Bye
+* l: Leg bye
+You must set the number of byes and leg byes.
+Wide and no ball will default to the one penalty run, but you can also add a number of runs which will be attributed to the batsman.
 
 ## Development roadmap
 * Add bowling figures

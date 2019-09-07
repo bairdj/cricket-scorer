@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #define VERSION "0.2"
 #define BALLS_PER_OVER 6
@@ -11,6 +12,7 @@ struct Innings {
         unsigned int runs;
         unsigned short wickets;
         unsigned int balls;
+	unsigned int extras;
 };
 
 struct Batsman {
@@ -26,7 +28,7 @@ void welcome();
 void print_score(struct Innings innings);
 void print_batsman(struct Batsman batsman);
 void switch_strike(int *striker, int *non_striker);
-void print_scorecard(struct Batsman batsman[11]);
+void print_scorecard(struct Batsman batsman[11], struct Innings innings);
 void setup_batsman(struct Batsman *player);
 
 int main() {
@@ -36,33 +38,64 @@ int main() {
 	innings.runs = 0;
 	innings.wickets = 0;
 	innings.balls = 0;
+	innings.extras = 0;
 	int striker = 0, non_striker = 1;
 	setup_batsman(&batsman[striker]);
 	setup_batsman(&batsman[non_striker]);
 	printf("Match ready to commence.\n");
 	/* Setup batsmen */
-	char input, *ip;
-	ip = &input;
-	while((input = getchar()) != 'x' & innings.wickets < TOTAL_WICKETS) {
+	char input[3];
+	while(fgets(input, 3, stdin) != NULL & innings.wickets < TOTAL_WICKETS) {
 		/* Skip enter */
-		if (input == '\n') continue;
-		if (input == 's') {
-			print_scorecard(batsman);
+		if (input[0] == '\n') continue;
+		if (input[0] == 'x') return 0;
+		if (input[0] == 's') {
+			print_scorecard(batsman, innings);
 			continue;
 		}
+		/* Boolean for legal delivery, so we don't switch strike on a no-ball etc. */
+		bool legal = true;
 		/* Handle input */
-		if (input == '.') {
+		if (input[0] == '.') {
 			innings.balls += 1;
 			batsman[striker].balls++;
-		} else if (input == 'w') {
+		} else if (input[0] == '!') {
 			innings.balls += 1;
 			innings.wickets += 1;
 			batsman[striker].in = false;
 			striker = innings.wickets + 1;
 			setup_batsman(&batsman[striker]);
+		} else if (input[0] == 'b' | input[0] == 'l') {
+			/* Handle byes and leg byes */
+			/* Skip first character, then send rest to atoi */
+			int byes = atoi(&input[1]);
+			if (byes == 0) {
+				printf("You must specify the number of byes.\n");
+			}
+			innings.runs += byes;
+			innings.extras += byes;
+			innings.balls++;
+			batsman[striker].balls++;
+		} else if (input[0] == 'w' | input[0] == 'n') {
+			legal = false;
+			/* Handle wides and no balls in the exact same way */
+			int wides = atoi(&input[1]);
+			/* Always at least one */
+			if (wides == 0) wides = 1;
+			innings.runs += wides;
+			innings.extras += wides;
+			/* Don't increment balls */
+			/* if > 1 the batsmen have run, so increment their score + switch strike */
+			/* May need to add some further complexity to handle running byes on a wide/no ball */
+			if (wides > 1) {
+				batsman[striker].runs += wides - 1;
+				if (wides - 1 % 2 != 0) {
+					switch_strike(&striker, &non_striker);
+				}
+			}
 		} else {
 			innings.balls += 1;
-			int runs_scored = input - '0';
+			int runs_scored = input[0] - '0';
 			/* Convert to int. This works because '0' is also an int, and spec guarantees numbers are sequential */
 			innings.runs += runs_scored;
 			batsman[striker].runs += runs_scored;
@@ -73,7 +106,7 @@ int main() {
 			}
 		}
 		/* If end of over, switch strike, even if already switched */
-		if (innings.balls % BALLS_PER_OVER == 0) switch_strike(&striker, &non_striker);
+		if (legal & innings.balls % BALLS_PER_OVER == 0) switch_strike(&striker, &non_striker);
 		print_score(innings);
 		print_batsman(batsman[striker]);
 		print_batsman(batsman[non_striker]);
@@ -106,7 +139,7 @@ void switch_strike(int *striker, int *non_striker) {
 	*non_striker = swap;
 }
 
-void print_scorecard(struct Batsman batsman[11]) {
+void print_scorecard(struct Batsman batsman[11], struct Innings innings) {
 	printf("Name\t\tRuns\tBalls\n");
 	struct Batsman *p;
 	p = &batsman[0];
@@ -117,6 +150,9 @@ void print_scorecard(struct Batsman batsman[11]) {
 		printf("\t\t%d\t%d\n", p->runs, p->balls);
 		p++;
 	}
+	printf("\n\n");
+	printf("Extras: %d\n", innings.extras);
+	printf("%d wickets for %d runs \n", innings.wickets, innings.runs);
 }
 
 void setup_batsman(struct Batsman *player) {
