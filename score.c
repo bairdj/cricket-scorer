@@ -27,7 +27,9 @@ int main() {
 			wickets += 1;
 		} else {
 			balls += 1;
-			runs += atoi(ip);
+			/* Convert to int. This works because '0' is also an int, and spec guarantees numbers are sequential */
+			runs += input - '0';
+			printf("%d\n", atoi(ip));
 		}
 		print_score(runs, wickets, balls);
 	}
